@@ -31,101 +31,161 @@ user_home = expanduser('~')
 db_file = user_home + '/.local/share/rhythmbox/rhythmdb.xml'
 path_repl = 'file://' + user_home + '/Music/'
 path_playlists = user_home + '/Playlists/'
-playlist_names = ['sync.m3u',
-                  'rnb.m3u',
-                  'jazz.m3u'
-                  ]
+
+# setup the playlists here:
+playlists = [
+        {
+            'filename': 'sync.m3u',
+            'size': 2000000000,
+            'rating_min': 3,
+            'genres': (
+                "!rock",
+                "!alternative",
+                "!house",
+                "!pop",
+                "!metal",
+                "!electr",
+                "!dance",
+                "!grunge",
+            )
+        },
+        {
+            'filename': 'rnb.m3u',
+            'size': 1500000000,
+            'rating_min': 3,
+            'genres': (
+                "r&b",
+                "funk",
+                "soul",
+                "!rock",
+                "!alternative",
+                "!house",
+                "!pop",
+                "!metal",
+                "!electr",
+                "!dance",
+                "!grunge",
+            )
+        },
+        {
+            'filename': 'jazz.m3u',
+            'size': 1500000000,
+            'genres': (
+                "jazz",
+                "!rock",
+                "!alternative",
+                "!house",
+                "!pop",
+                "!metal",
+                "!electr",
+                "!dance",
+                "!grunge",
+            )
+        }
+]  # /playlists
 
 
-genre_filters = ["rock",
-                 "alternative",
-                 "house",
-                 "pop",
-                 "metal",
-                 "electr",
-                 "dance",
-                 "grunge",
-                 ]
-
-# TODO: fix this
+# Date filter: only select songs that haven't been played
+# within the last [3] weeks.
 played_before = datetime.datetime.now() - datetime.timedelta(weeks=3)
 played_before = str(int(played_before.timestamp()))
 
-xpath_date_filter = " and (not(last-played) "\
-        + "or ./last-played[.<" + played_before + "])"
+xpath_filter = '//entry[@type="song"'
+xpath_filter += " and (not(last-played) "\
+        + "or ./last-played[.<" + played_before + "])]"
 
-xpath_and_cmd = ""
-for filter in genre_filters:
-    xpath_and_cmd += ' and ./genre[not(contains(text(),"' + filter + '"))]'
-
-or_filters = [(),
-              ("./genre[contains(text(),'r&b')]",
-               "./genre[contains(text(),'soul')]",
-               "./genre[contains(text(),'funk')]"
-               ),
-              ("./genre[contains(text(),'jazz')]",
-               )]
-
-size_limits = (2000000000, 1500000000, 1500000000)
-
-# db_cmd_base = "SELECT Name, Title, Duration, Uri, FileSize "\
-#     + "FROM CoreTracks "\
-#     + "LEFT JOIN CoreArtists "\
-#     + "ON CoreTracks.ArtistID=CoreArtists.ArtistID "\
-#     + "WHERE TrackID in ("\
-#     + "SELECT TrackID FROM CoreTracks WHERE "
-
-xpath_base = '//entry[@type="song"' + xpath_date_filter
-
+# get the rhythmbox database (xml file)
 tree = etree.parse(db_file)
 root = tree.getroot()
+full_list = []
 
-for j, playlist in enumerate(playlist_names):
-    xpath_or_cmd = ""
-    first_filter = True
-    for filter in or_filters[j]:
-        if first_filter:
-            first_filter = False
-            xpath_or_cmd = " and (" + filter
+# Copy filtered songs into full_list dictionary
+for song in root.xpath(xpath_filter):
+    artist = song.find('artist')
+    if artist is not None:
+        artist = artist.text
+    title = song.find('title')
+    if title is not None:
+        title = title.text
+    duration = song.find('duration')
+    if duration is not None:
+        duration = int(duration.text)
+    location = song.find('location').text
+    file_size = int(song.find('file-size').text)
+    genre = song.find('genre')
+    if genre is not None:
+        genre = genre.text
+    rating = song.find('rating')
+    if rating is not None:
+        rating = float(rating.text)
+    full_list.append({
+        'artist': artist,
+        'title': title,
+        'duration': duration,
+        'genre': genre,
+        'rating': rating,
+        'location': location,
+        'file_size': file_size
+        })
+
+
+# Function to determine whether or not any of the strings in a given list
+# are contained within another string
+# if an item in compList begins with an `!` character, the function returns
+# false if testStr contains that string, even if it contains other items
+# in compList
+# if all of the items in compList begin with a `!` then return true if none
+# of the items in compList are found in testStr
+#  compList: list of strings to look for
+#  testStr: string to search within
+def strListInStr(compList, testStr):
+    retVal = True
+    retSet = False
+    allBangs = True
+    for s in compList:
+        if s.startswith('!'):
+            s = s[1:]
+            bang = False
         else:
-            xpath_or_cmd += " or " + filter
-    if xpath_or_cmd:
-        xpath_or_cmd += ") "
-    # db_sub_cmd = xpath_and_cmd + date_filter + xpath_or_cmd
-    xpath_cmd = xpath_base + xpath_or_cmd + "]"
+            bang = True
+            allBangs = False
+        if s.lower() in testStr.lower():
+            retVal = bang is True and retVal
+            retSet = True
+    return retVal and (retSet or allBangs)
+
+
+# Loop through each of the playlists
+for playlist in playlists:
+
+    # Filter genres
+    filtered_list = list(filter(
+        lambda song: strListInStr(playlist['genres'], song['genre']),
+        full_list
+    ))
+
+    # Filter ratings
+    if 'rating_min' in playlist:
+        filtered_list = list(filter(
+            lambda song:
+                song['rating'] is not None and
+                song['rating'] >= playlist['rating_min'],
+            filtered_list
+        ))
+
+    # Shuffle all the songs so that we select "random" tracks
+    random.shuffle(filtered_list)
 
     file_size_sum = 0.0
-    f = open(path_playlists + playlist_names[j], 'w')
+    f = open(path_playlists + playlist['filename'], 'w')
     print("#EXTM3U", file=f)
 
-    full_list = []
-    for song in root.xpath(xpath_cmd):
-        artist = song.find('artist')
-        if artist is not None:
-            artist = artist.text
-        title = song.find('title')
-        if title is not None:
-            title = title.text
-        duration = song.find('duration')
-        if duration is not None:
-            duration = int(duration.text)
-        location = song.find('location').text
-        file_size = int(song.find('file-size').text)
-        full_list.append({
-            'artist': artist,
-            'title': title,
-            'duration': duration,
-            'location': location,
-            'file_size': file_size
-            })
-
-    random.shuffle(full_list)
-    for song in full_list:
+    for song in filtered_list:
         print("#EXTINF:" + str(song['duration'])
               + "," + song['artist'] + " - " + song['title'], file=f)
         print(unquote(song['location'].replace(path_repl, '')), file=f)
         file_size_sum += file_size
-        if file_size_sum > size_limits[j]:
+        if file_size_sum > playlist['size']:
             break
 
     f.close()
