@@ -40,6 +40,7 @@ playlists = [
             'rating_min': 3,
             'genres': (
                 "!rock",
+                "!punk",
                 "!alternative",
                 "!house",
                 "!pop",
@@ -58,6 +59,7 @@ playlists = [
                 "funk",
                 "soul",
                 "!rock",
+                "!punk",
                 "!alternative",
                 "!house",
                 "!pop",
@@ -73,6 +75,7 @@ playlists = [
             'genres': (
                 "jazz",
                 "!rock",
+                "!punk",
                 "!alternative",
                 "!house",
                 "!pop",
