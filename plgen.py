@@ -35,8 +35,8 @@ path_playlists = user_home + '/Playlists/'
 # setup the playlists here:
 playlists = [
         {
-            'filename': 'sync.m3u',
-            'size': 3000000000,
+            'filename': 'mix.m3u',
+            'size': 2000000000,
             'rating_min': 3,
             'genres': (
                 "!rock",
@@ -165,8 +165,7 @@ for playlist in playlists:
 
     # Filter genres
     filtered_list = list(filter(
-        lambda song: strListInStr(playlist['genres'], song['genre']),
-        full_list
+        lambda song: strListInStr(playlist['genres'], song['genre']), full_list
     ))
 
     # Filter ratings
