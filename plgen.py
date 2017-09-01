@@ -36,9 +36,10 @@ path_playlists = user_home + '/Playlists/'
 playlists = [
         {
             'filename': 'mix.m3u',
-            'size': 2000000000,
-            'rating_min': 3,
-            'genres': (
+            'size': 2000000000,  # Total size (in bytes) of songs to select
+            'rating_min': 3,  # Songs must have minimum of X star rating
+            'last_play': 3,  # Only songs not played in previous X weeks
+            'genres': (  # Select songs whose genre (!ex|in)cludes this text.
                 "!rock",
                 "!punk",
                 "!alternative",
@@ -55,25 +56,18 @@ playlists = [
             'filename': 'rnb.m3u',
             'size': 1500000000,
             'rating_min': 3,
+            'last_play': 2,
             'genres': (
                 "r&b",
                 "funk",
-                "soul",
-                "!rock",
-                "!punk",
-                "!alternative",
-                "!house",
-                "!pop",
-                "!metal",
-                "!electr",
-                "!dance",
-                "!grunge",
+                "soul"
             )
         },
         {
             'filename': 'hiphop.m3u',
             'size': 1500000000,
             'rating_min': 3,
+            'last_play': 2,
             'genres': (
                 "hip-hop",
                 "rap"
@@ -89,14 +83,9 @@ playlists = [
 ]  # /playlists
 
 
-# Date filter: only select songs that haven't been played
-# within the last [3] weeks.
-played_before = datetime.datetime.now() - datetime.timedelta(weeks=2)
-played_before = str(int(played_before.timestamp()))
-
-xpath_filter = '//entry[@type="song"'
-xpath_filter += " and (not(last-played) "\
-        + "or ./last-played[.<" + played_before + "])]"
+xpath_filter = '//entry[@type="song"]'
+# xpath_filter += " and (not(last-played) "\
+#         + "or ./last-played[.<" + played_before + "])]"
 
 # get the rhythmbox database (xml file)
 tree = etree.parse(db_file)
@@ -122,6 +111,11 @@ for song in root.xpath(xpath_filter):
     rating = song.find('rating')
     if rating is not None:
         rating = float(rating.text)
+    last_played = song.find('last-played')
+    if last_played is not None:
+        last_played = int(last_played.text)
+    else:
+        last_played = 0
     full_list.append({
         'artist': artist,
         'title': title,
@@ -129,7 +123,8 @@ for song in root.xpath(xpath_filter):
         'genre': genre,
         'rating': rating,
         'location': location,
-        'file_size': file_size
+        'file_size': file_size,
+        'last_played': last_played
         })
 
 
@@ -176,6 +171,18 @@ for playlist in playlists:
                 song['rating'] >= playlist['rating_min'],
             filtered_list
         ))
+
+    # Date filter: only select songs that haven't been played
+    # within the last [3] weeks.
+    if 'last_play' in playlist:
+        played_before = datetime.datetime.now() - \
+            datetime.timedelta(weeks=int(playlist['last_play']))
+        played_before = int(played_before.timestamp())
+        filtered_list = list(filter(
+            lambda song:
+                song['last_played'] < played_before,
+            filtered_list
+            ))
 
     # Shuffle all the songs so that we select "random" tracks
     random.shuffle(filtered_list)
