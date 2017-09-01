@@ -36,7 +36,7 @@ path_playlists = user_home + '/Playlists/'
 playlists = [
         {
             'filename': 'sync.m3u',
-            'size': 2000000000,
+            'size': 3000000000,
             'rating_min': 3,
             'genres': (
                 "!rock",
@@ -48,6 +48,7 @@ playlists = [
                 "!electr",
                 "!dance",
                 "!grunge",
+                "!jazz"
             )
         },
         {
@@ -70,19 +71,19 @@ playlists = [
             )
         },
         {
-            'filename': 'jazz.m3u',
+            'filename': 'hiphop.m3u',
             'size': 1500000000,
+            'rating_min': 3,
             'genres': (
-                "jazz",
-                "!rock",
-                "!punk",
-                "!alternative",
-                "!house",
-                "!pop",
-                "!metal",
-                "!electr",
-                "!dance",
-                "!grunge",
+                "hip-hop",
+                "rap"
+            )
+        },
+        {
+            'filename': 'jazz.m3u',
+            'size': 1000000000,
+            'genres': (
+                "jazz"
             )
         }
 ]  # /playlists
@@ -90,7 +91,7 @@ playlists = [
 
 # Date filter: only select songs that haven't been played
 # within the last [3] weeks.
-played_before = datetime.datetime.now() - datetime.timedelta(weeks=3)
+played_before = datetime.datetime.now() - datetime.timedelta(weeks=2)
 played_before = str(int(played_before.timestamp()))
 
 xpath_filter = '//entry[@type="song"'
@@ -159,6 +160,7 @@ def strListInStr(compList, testStr):
 
 
 # Loop through each of the playlists
+random.seed()
 for playlist in playlists:
 
     # Filter genres
@@ -180,6 +182,7 @@ for playlist in playlists:
     random.shuffle(filtered_list)
 
     file_size_sum = 0.0
+    counter = 0
     f = open(path_playlists + playlist['filename'], 'w')
     print("#EXTM3U", file=f)
 
@@ -187,9 +190,13 @@ for playlist in playlists:
         print("#EXTINF:" + str(song['duration'])
               + "," + song['artist'] + " - " + song['title'], file=f)
         print(unquote(song['location'].replace(path_repl, '')), file=f)
-        file_size_sum += file_size
+        counter += 1
+        file_size_sum += song['file_size']
         if file_size_sum > playlist['size']:
             break
+
+    print("Added " + str(counter) + " songs to " +
+          playlist['filename'])
 
     f.close()
 
