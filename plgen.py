@@ -36,11 +36,14 @@ path_playlists = user_home + '/Playlists/'
 playlists = [
         {
             'filename': 'mix.m3u',
-            'size': 2000000000,  # Total size (in bytes) of songs to select
+            'size': 2500,     # Total size (in Mbytes) of songs to include
+            'count': 350,     # Number of songs to include
+                              # NOTE: The script will stop after first of
+                              # 'size' or 'count' is reached
             'rating_min': 3,  # Songs must have minimum of X star rating
-            'last_play': 3,  # Only songs not played in previous X weeks
-            'genres': (  # Select songs whose genre (!ex|in)cludes this text.
-                "!rock",
+            'last_play': 6,   # Only songs not played in previous X weeks
+            'genres': (       # Include songs matching these genres
+                "!rock",      # NOTE: items starting with "!" are excluded
                 "!punk",
                 "!alternative",
                 "!house",
@@ -54,9 +57,9 @@ playlists = [
         },
         {
             'filename': 'rnb.m3u',
-            'size': 1500000000,
+            'size': 2000,
             'rating_min': 3,
-            'last_play': 2,
+            'last_play': 4,
             'genres': (
                 "r&b",
                 "funk",
@@ -65,9 +68,9 @@ playlists = [
         },
         {
             'filename': 'hiphop.m3u',
-            'size': 1500000000,
+            'size': 2000,
             'rating_min': 3,
-            'last_play': 2,
+            'last_play': 4,
             'genres': (
                 "hip-hop",
                 "rap"
@@ -75,7 +78,7 @@ playlists = [
         },
         {
             'filename': 'jazz.m3u',
-            'size': 1000000000,
+            'size': 1500,
             'genres': (
                 "jazz"
             )
@@ -198,8 +201,12 @@ for playlist in playlists:
         print(unquote(song['location'].replace(path_repl, '')), file=f)
         counter += 1
         file_size_sum += song['file_size']
-        if file_size_sum > playlist['size']:
-            break
+        if 'size' in playlist:
+            if file_size_sum >= (playlist['size'] * 1000000):
+                break
+        if 'count' in playlist:
+            if counter >= playlist['count']:
+                break
 
     print("Added " + str(counter) + " songs to " +
           playlist['filename'])
