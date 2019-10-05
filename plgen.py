@@ -23,7 +23,6 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 from lxml import etree
 from os.path import expanduser
 from urllib.parse import unquote
-import os.path
 import datetime
 import random
 
@@ -199,7 +198,7 @@ for playlist in playlists:
     for song in filtered_list:
         print("#EXTINF:" + str(song['duration'])
               + "," + song['artist'] + " - " + song['title'], file=f)
-        print(unquote(os.path.basename(song['location'].replace(path_repl, ''))), file=f)
+        print(unquote(song['location'].replace(path_repl, '')), file=f)
         counter += 1
         file_size_sum += song['file_size']
         if 'size' in playlist:
