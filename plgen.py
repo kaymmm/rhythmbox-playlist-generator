@@ -80,7 +80,6 @@ playlists = [
         {
             'filename': 'jazz.m3u',
             'size': 1500,
-            'last_play': 4,
             'genres': (
                 "jazz"
             )
