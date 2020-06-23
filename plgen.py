@@ -43,16 +43,25 @@ playlists = [
             'rating_min': 3,  # Songs must have minimum of X star rating
             'last_play': 6,   # Only songs not played in previous X weeks
             'genres': (       # Include songs matching these genres
-                "!rock",      # NOTE: items starting with "!" are excluded
-                "!punk",
-                "!alternative",
-                "!house",
-                "!pop",
-                "!metal",
-                "!electr",
+                "!alternat",      # NOTE: items starting with "!" are excluded
+                "!blues",
+                "!burmese",
                 "!dance",
+                "!electr",
                 "!grunge",
-                "!jazz"
+                "!house",
+                "!instrument",
+                "!jazz",
+                "!metal",
+                "!ondo",
+                "!obon",
+                "!pop",
+                "!punk",
+                "!rock",
+                "!spoken",
+                "!trip",
+                "!wave",
+                "!world"
             )
         },
         {
@@ -73,14 +82,19 @@ playlists = [
             'last_play': 4,
             'genres': (
                 "hip-hop",
-                "rap"
+                "!instrument"
             )
         },
         {
             'filename': 'jazz.m3u',
             'size': 1500,
             'genres': (
-                "jazz"
+                "jazz",
+                "!nu",
+                "!latin",
+                "!acid",
+                "!electr",
+                "!hip"
             )
         }
 ]  # /playlists
@@ -176,7 +190,7 @@ for playlist in playlists:
         ))
 
     # Date filter: only select songs that haven't been played
-    # within the last [3] weeks.
+    # within the last x weeks.
     if 'last_play' in playlist:
         played_before = datetime.datetime.now() - \
             datetime.timedelta(weeks=int(playlist['last_play']))
