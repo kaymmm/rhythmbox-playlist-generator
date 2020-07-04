@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2017 Keith Miyake
+Copyright (c) 2020 Keith Miyake
 Copyright (c) 2009 Wolfgang Steitz
 
 This program is free software; you can redistribute it and/or modify
@@ -36,7 +36,7 @@ path_playlists = user_home + '/Playlists/'
 playlists = [
         {
             'filename': 'mix.m3u',
-            'size': 2500,     # Total size (in Mbytes) of songs to include
+            'size': 1600,     # Total size (in Mbytes) of songs to include
             'count': 350,     # Number of songs to include
                               # NOTE: The script will stop after first of
                               # 'size' or 'count' is reached
@@ -66,7 +66,7 @@ playlists = [
         },
         {
             'filename': 'rnb.m3u',
-            'size': 2000,
+            'size': 1700,
             'rating_min': 3,
             'last_play': 4,
             'genres': (
@@ -77,7 +77,7 @@ playlists = [
         },
         {
             'filename': 'hiphop.m3u',
-            'size': 2000,
+            'size': 1700,
             'rating_min': 3,
             'last_play': 4,
             'genres': (
@@ -87,7 +87,7 @@ playlists = [
         },
         {
             'filename': 'jazz.m3u',
-            'size': 1500,
+            'size': 1000,
             'genres': (
                 "jazz",
                 "!nu",
