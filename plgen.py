@@ -36,7 +36,7 @@ path_playlists = user_home + '/Playlists/'
 playlists = [
         {
             'filename': 'mix.m3u',
-            'size': 1600,     # Total size (in Mbytes) of songs to include
+            'size': 1400,     # Total size (in Mbytes) of songs to include
             'count': 350,     # Number of songs to include
                               # NOTE: The script will stop after first of
                               # 'size' or 'count' is reached
@@ -66,7 +66,7 @@ playlists = [
         },
         {
             'filename': 'rnb.m3u',
-            'size': 1700,
+            'size': 1400,
             'rating_min': 3,
             'last_play': 4,
             'genres': (
@@ -77,26 +77,26 @@ playlists = [
         },
         {
             'filename': 'hiphop.m3u',
-            'size': 1700,
+            'size': 1400,
             'rating_min': 3,
             'last_play': 4,
             'genres': (
                 "hip-hop",
                 "!instrument"
             )
-        },
-        {
-            'filename': 'jazz.m3u',
-            'size': 1000,
-            'genres': (
-                "jazz",
-                "!nu",
-                "!latin",
-                "!acid",
-                "!electr",
-                "!hip"
-            )
         }
+        # {
+        #     'filename': 'jazz.m3u',
+        #     'size': 1000,
+        #     'genres': (
+        #         "jazz",
+        #         "!nu",
+        #         "!latin",
+        #         "!acid",
+        #         "!electr",
+        #         "!hip"
+        #     )
+        # }
 ]  # /playlists
 
 
