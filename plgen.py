@@ -165,7 +165,7 @@ def strListInStr(compList, testStr):
         else:
             bang = True
             allBangs = False
-        if s.lower() in testStr.lower():
+        if testStr and s.lower() in testStr.lower():
             retVal = bang is True and retVal
             retSet = True
     return retVal and (retSet or allBangs)
