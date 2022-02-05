@@ -26,10 +26,11 @@ from lxml import etree
 import logging
 import os
 import random
+import sys
 from urllib.parse import unquote
 import yaml
 
-# Change the following paths as appropriate for your system
+# Default paths, change them in the config file
 filename = inspect.getframeinfo(inspect.currentframe()).filename
 SCRIPT_DIR = os.path.dirname(os.path.abspath(filename))
 RHYTHMBOX_DB = os.path.expanduser('~/.local/share/rhythmbox/rhythmdb.xml')
@@ -54,7 +55,6 @@ class PLGen():
         if os.path.isfile(self.config['rhythmdb']):
             db = etree.parse(self.config['rhythmdb'])
             self.db_root = db.getroot()
-            self.songs = self.get_songs()
 
     def load_config(self, config_file):
         try:
@@ -66,16 +66,16 @@ class PLGen():
                 logging.error('The configuration file does not exist at ' + config_file)
         except Exception as err:
             logging.error('There was an error loading the configuration file: {0}'.format(err))
-            # sys.exit('Fatal error. Exiting.')
+            sys.exit('Fatal error. Exiting.')
         if not self.config:
             logging.error('Configuration not parsed correctly')
             logging.error('  make sure you have a "rbplgen.yaml" file configured.')
-            # sys.exit('Fatal error. Exiting.')
+            sys.exit('Fatal error. Exiting.')
         else:
             logging.debug('Configuration file parsed.')
             if not 'playlists' in self.config:
                 logging.error('No playlists defined in the configuration file.')
-                # sys.exit('Fatal error. Exiting.')
+                sys.exit('Fatal error. Exiting.')
             if 'rhythmdb' in self.config:
                 self.config['rhythmdb'] = os.path.expanduser(self.config['rhythmdb'])
             else:
@@ -91,7 +91,7 @@ class PLGen():
         logging.debug('Configuration:')
         logging.debug(self.config)
 
-    def get_songs(self):
+    def get_songs(self, xpath_query='//entry[@type="song"]'):
         songs = []
         for song in self.db_root.xpath('//entry[@type="song"]'):
             artist = song.find('artist')
@@ -127,6 +127,49 @@ class PLGen():
                 'last_played': last_played
                 })
         return songs
+
+    def get_playlist_query(self, playlist):
+        if playlist is None:
+            return []
+        query = '//entry[@type="song"]'
+        if 'genres' in playlist:
+            logging.debug('Genres: ')
+            logging.debug(playlist['genres'])
+            genre_count = 0
+            query += '/grenre['
+            for g in playlist['genres']:
+                operator = '='
+                if g[0] == '!':
+                    genre = g[1:-1]
+                    operator = '!='
+                else:
+                    genre = g
+                genre = genre.lower()
+                if genre_count > 0:
+                    query += ' or '
+                # TODO: use variables for genre, need to figure out how to pass all variables to xpath
+                query += 'contains(lower(text())' + operator + genre + ')'
+                genre_count += 1
+            query += ']/..'
+
+        if 'rating_min' in playlist:
+            logging.debug('Rating min: ' + str(playlist['rating_min']))
+            query += '/rating[text()>=' + str(playlist['rating_min']) + ']/..'
+
+        if 'rating_max' in playlist:
+            logging.debug('Rating max: ' + str(playlist['rating_max']))
+            query += '/rating[text()<=' + str(playlist['rating_max']) + ']/..'
+
+        if 'rating' in playlist:
+            logging.debug('Rating: ' + str(playlist['rating']))
+            query += '/rating[text()=' + str(playlist['rating']) + ']/..'
+
+        if 'weeks_since_played' in playlist:
+            played_before = datetime.datetime.now() - \
+                datetime.timedelta(weeks=int(playlist['weeks_since_played']))
+            played_before = str(played_before.timestamp())
+            query += '/last-played[text()<=' + played_before + ']/..'
+        return query
 
     def get_song_matches(self, songlist, playlist):
         if playlist is None:
@@ -210,7 +253,12 @@ class PLGen():
     def generate_playlists(self):
         random.seed()
         for pl in self.config['playlists']:
-            songlist = self.get_song_matches(self.songs, pl)
+            # copying the whole songlist and filtering takes longer and more memory
+            # self.songs = self.get_songs()
+            # songlist = self.get_song_matches(self.songs, pl)
+            # using xpath with a bunch of patterns seems to work faster with less memory
+            song_query = self.get_playlist_query(pl)
+            songlist = self.get_songs(song_query)
             self.create_playlist(songlist, pl)
 
     def strListInStr(self, compList, testStr):
