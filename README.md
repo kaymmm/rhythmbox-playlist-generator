@@ -16,7 +16,7 @@ Relies on somewhat complex XPath filters to generate the playlists.
 
 ## Version History
 
-v0.2.0: Overhauled the filtering system and added config files
+v1.0.0: Overhauled the filtering system and added config files (breaking changes)
 
 v0.1.1: Dependency updates
 

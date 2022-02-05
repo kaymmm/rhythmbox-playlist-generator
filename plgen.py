@@ -21,7 +21,7 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 """
 
 # Rhythmbox Playlist Generator
-# v0.2.0
+# v1.0.0
 # 2022-02-05
 
 import datetime
