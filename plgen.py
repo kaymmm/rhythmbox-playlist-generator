@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Copyright (c) 2020 Keith Miyake
+Copyright (c) 2022 Keith Miyake
 Copyright (c) 2009 Wolfgang Steitz
 
 This program is free software; you can redistribute it and/or modify
@@ -20,211 +20,226 @@ Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
 
 """
 
-from lxml import etree
-from os.path import expanduser
-from urllib.parse import unquote
 import datetime
+import inspect
+from lxml import etree
+import logging
+import os
 import random
+from urllib.parse import unquote
+import yaml
 
 # Change the following paths as appropriate for your system
-user_home = expanduser('~')
-db_file = user_home + '/.local/share/rhythmbox/rhythmdb.xml'
-path_repl = 'file://' + user_home + '/Music/'
-path_playlists = user_home + '/Playlists/'
+filename = inspect.getframeinfo(inspect.currentframe()).filename
+SCRIPT_DIR = os.path.dirname(os.path.abspath(filename))
+RHYTHMBOX_DB = os.path.expanduser('~/.local/share/rhythmbox/rhythmdb.xml')
+CONFIG_FILE = os.path.join(SCRIPT_DIR, 'rbplgen.yaml')
+MUSIC_DIR = 'file://' + os.path.expanduser('~/Music/')
+PLAYLIST_DIR = os.path.expanduser('~/Playlists/')
 
-# setup the playlists here:
-playlists = [
-        {
-            'filename': 'mix.m3u',
-            'size': 1000,     # Total size (in Mbytes) of songs to include
-            'count': 300,     # Number of songs to include
-                              # NOTE: The script will stop after first of
-                              # 'size' or 'count' is reached
-            'rating_min': 3,  # Songs must have minimum of X star rating
-            'last_play': 6,   # Only songs not played in previous X weeks
-            'genres': (       # Include songs matching these genres
-                "!alternat",      # NOTE: items starting with "!" are excluded
-                "!blues",
-                "!burmese",
-                "!dance",
-                "!electr",
-                "!grunge",
-                "!house",
-                "!instrument",
-                "!jazz",
-                "!metal",
-                "!ondo",
-                "!obon",
-                "!pop",
-                "!punk",
-                "!rock",
-                "!spoken",
-                "!trip",
-                "!wave",
-                "!world"
-            )
-        },
-        {
-            'filename': 'rnb.m3u',
-            'size': 1000,
-            'rating_min': 3,
-            'last_play': 4,
-            'genres': (
-                "r&b",
-                "funk",
-                "soul"
-            )
-        },
-        {
-            'filename': 'hiphop.m3u',
-            'size': 700,
-            'rating_min': 3,
-            'last_play': 4,
-            'genres': (
-                "hip-hop",
-                "!instrument"
-            )
-        }
-        # {
-        #     'filename': 'jazz.m3u',
-        #     'size': 1000,
-        #     'genres': (
-        #         "jazz",
-        #         "!nu",
-        #         "!latin",
-        #         "!acid",
-        #         "!electr",
-        #         "!hip"
-        #     )
-        # }
-]  # /playlists
+logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
 
+class PLGen():
+    config = None
+    db_root = None
+    songs = None
 
-xpath_filter = '//entry[@type="song"]'
-# xpath_filter += " and (not(last-played) "\
-#         + "or ./last-played[.<" + played_before + "])]"
+    def __init__(self,
+                 config_file=CONFIG_FILE,
+                 db_file=RHYTHMBOX_DB,
+                 music_dir=MUSIC_DIR,
+                 playlist_dir=PLAYLIST_DIR):
+        if self.config is None:
+            self.load_config(config_file)
+        if os.path.isfile(self.config['rhythmdb']):
+            db = etree.parse(self.config['rhythmdb'])
+            self.db_root = db.getroot()
+            self.songs = self.get_songs()
 
-# get the rhythmbox database (xml file)
-tree = etree.parse(db_file)
-root = tree.getroot()
-full_list = []
-
-# Copy filtered songs into full_list dictionary
-for song in root.xpath(xpath_filter):
-    artist = song.find('artist')
-    if artist is not None:
-        artist = artist.text
-    title = song.find('title')
-    if title is not None:
-        title = title.text
-    duration = song.find('duration')
-    if duration is not None:
-        duration = int(duration.text)
-    location = song.find('location').text
-    file_size = int(song.find('file-size').text)
-    genre = song.find('genre')
-    if genre is not None:
-        genre = genre.text
-    rating = song.find('rating')
-    if rating is not None:
-        rating = float(rating.text)
-    last_played = song.find('last-played')
-    if last_played is not None:
-        last_played = int(last_played.text)
-    else:
-        last_played = 0
-    full_list.append({
-        'artist': artist,
-        'title': title,
-        'duration': duration,
-        'genre': genre,
-        'rating': rating,
-        'location': location,
-        'file_size': file_size,
-        'last_played': last_played
-        })
-
-
-# Function to determine whether or not any of the strings in a given list
-# are contained within another string
-# if an item in compList begins with an `!` character, the function returns
-# false if testStr contains that string, even if it contains other items
-# in compList
-# if all of the items in compList begin with a `!` then return true if none
-# of the items in compList are found in testStr
-#  compList: list of strings to look for
-#  testStr: string to search within
-def strListInStr(compList, testStr):
-    retVal = True
-    retSet = False
-    allBangs = True
-    for s in compList:
-        if s.startswith('!'):
-            s = s[1:]
-            bang = False
+    def load_config(self, config_file):
+        try:
+            if os.path.isfile(config_file):
+                with open(config_file, 'r') as f:
+                    logging.debug('Configuration file opened: ' + config_file)
+                    self.config = yaml.load(f, Loader=yaml.SafeLoader)
+            else:
+                logging.error('The configuration file does not exist at ' + config_file)
+        except Exception as err:
+            logging.error('There was an error loading the configuration file: {0}'.format(err))
+            # sys.exit('Fatal error. Exiting.')
+        if not self.config:
+            logging.error('Configuration not parsed correctly')
+            logging.error('  make sure you have a "rbplgen.yaml" file configured.')
+            # sys.exit('Fatal error. Exiting.')
         else:
-            bang = True
-            allBangs = False
-        if testStr and s.lower() in testStr.lower():
-            retVal = bang is True and retVal
-            retSet = True
-    return retVal and (retSet or allBangs)
+            logging.debug('Configuration file parsed.')
+            if not 'playlists' in self.config:
+                logging.error('No playlists defined in the configuration file.')
+                # sys.exit('Fatal error. Exiting.')
+            if 'rhythmdb' in self.config:
+                self.config['rhythmdb'] = os.path.expanduser(self.config['rhythmdb'])
+            else:
+                self.config['rhythmdb'] = RHYTHMBOX_DB
+            if 'music_dir' in self.config:
+                self.config['music_dir'] = 'file://' + os.path.expanduser(self.config['music_dir'])
+            else:
+                self.config['music_dir'] = MUSIC_DIR
+            if 'playlist_dir' in self.config:
+                self.config['playlist_dir'] = os.path.expanduser(self.config['playlist_dir'])
+            else:
+                self.config['playlist_dir'] = PLAYLIST_DIR
+        logging.debug('Configuration:')
+        logging.debug(self.config)
 
+    def get_songs(self):
+        songs = []
+        for song in self.db_root.xpath('//entry[@type="song"]'):
+            artist = song.find('artist')
+            if artist is not None:
+                artist = artist.text
+            title = song.find('title')
+            if title is not None:
+                title = title.text
+            duration = song.find('duration')
+            if duration is not None:
+                duration = int(duration.text)
+            location = song.find('location').text
+            file_size = int(song.find('file-size').text)
+            genre = song.find('genre')
+            if genre is not None:
+                genre = genre.text
+            rating = song.find('rating')
+            if rating is not None:
+                rating = float(rating.text)
+            last_played = song.find('last-played')
+            if last_played is not None:
+                last_played = int(last_played.text)
+            else:
+                last_played = 0
+            songs.append({
+                'artist': artist,
+                'title': title,
+                'duration': duration,
+                'genre': genre,
+                'rating': rating,
+                'location': location,
+                'file_size': file_size,
+                'last_played': last_played
+                })
+        return songs
 
-# Loop through each of the playlists
-random.seed()
-for playlist in playlists:
+    def get_song_matches(self, songlist, playlist):
+        if playlist is None:
+            return []
 
-    # Filter genres
-    filtered_list = list(filter(
-        lambda song: strListInStr(playlist['genres'], song['genre']), full_list
-    ))
-
-    # Filter ratings
-    if 'rating_min' in playlist:
-        filtered_list = list(filter(
-            lambda song:
-                song['rating'] is not None and
-                song['rating'] >= playlist['rating_min'],
-            filtered_list
-        ))
-
-    # Date filter: only select songs that haven't been played
-    # within the last x weeks.
-    if 'last_play' in playlist:
-        played_before = datetime.datetime.now() - \
-            datetime.timedelta(weeks=int(playlist['last_play']))
-        played_before = int(played_before.timestamp())
-        filtered_list = list(filter(
-            lambda song:
-                song['last_played'] < played_before,
-            filtered_list
+        if 'genres' in playlist:
+            logging.debug('Genres: ')
+            logging.debug(playlist['genres'])
+            songlist = list(filter(
+                lambda song:
+                    self.strListInStr(playlist['genres'], song['genre']),
+                songlist
             ))
 
-    # Shuffle all the songs so that we select "random" tracks
-    random.shuffle(filtered_list)
+        if 'rating_min' in playlist:
+            songlist = list(filter(
+                lambda song:
+                    song['rating'] is not None and
+                    song['rating'] >= playlist['rating_min'],
+                songlist
+            ))
 
-    file_size_sum = 0.0
-    counter = 0
-    f = open(path_playlists + playlist['filename'], 'w')
-    print("#EXTM3U", file=f)
+        if 'rating_max' in playlist:
+            songlist = list(filter(
+                lambda song:
+                    song['rating'] is not None and
+                    song['rating'] <= playlist['rating_max'],
+                songlist
+            ))
 
-    for song in filtered_list:
-        print("#EXTINF:" + str(song['duration'])
-              + "," + song['artist'] + " - " + song['title'], file=f)
-        print(unquote(song['location'].replace(path_repl, '')), file=f)
-        counter += 1
-        file_size_sum += song['file_size']
-        if 'size' in playlist:
-            if file_size_sum >= (playlist['size'] * 1000000):
-                break
-        if 'count' in playlist:
-            if counter >= playlist['count']:
-                break
+        if 'rating' in playlist:
+            songlist = list(filter(
+                lambda song:
+                    song['rating'] is not None and
+                    song['rating'] == playlist['rating'],
+                songlist
+            ))
 
-    print("Added " + str(counter) + " songs to " +
-          playlist['filename'])
+        if 'weeks_since_played' in playlist:
+            played_before = datetime.datetime.now() - \
+                datetime.timedelta(weeks=int(playlist['weeks_since_played']))
+            played_before = int(played_before.timestamp())
+            songlist = list(filter(
+                lambda song:
+                    song['last_played'] < played_before,
+                songlist
+            ))
 
-    f.close()
+        return songlist
+
+    def create_playlist(self, songlist, playlist):
+        logging.debug('Playlist Info: ')
+        logging.debug(playlist)
+        random.shuffle(songlist)
+        file_size_sum = 0.0
+        song_count = 0
+        try:
+            f = open(self.config['playlist_dir'] + playlist['filename'], 'w')
+            logging.debug('Opened ' + playlist['filename'])
+            print("#EXTM3U", file=f)
+
+            for song in songlist:
+                print("#EXTINF:" + str(song['duration'])
+                    + "," + song['artist'] + " - " + song['title'], file=f)
+                print(unquote(song['location'].replace(self.config['music_dir'], '/music/')), file=f)
+                song_count += 1
+                file_size_sum += song['file_size']
+                if 'size' in playlist:
+                    if file_size_sum >= (playlist['size'] * 1000000):
+                        break
+                if 'count' in playlist:
+                    if song_count >= playlist['count']:
+                        break
+            f.close()
+        except Exception as err:
+            logging.error('There was an error creating ' + playlist['filename'] + ': {0}'.format(err))
+
+        logging.info('Added ' + str(song_count) + ' songs to ' +
+            playlist['filename'])
+
+    def generate_playlists(self):
+        random.seed()
+        for pl in self.config['playlists']:
+            songlist = self.get_song_matches(self.songs, pl)
+            self.create_playlist(songlist, pl)
+
+    def strListInStr(self, compList, testStr):
+        # Function to determine whether or not any of the strings in a given list
+        # are contained within another string
+        # if an item in compList begins with an `!` character, the function returns
+        # false if testStr contains that string, even if it contains other items
+        # in compList
+        # if all of the items in compList begin with a `!` then return true if none
+        # of the items in compList are found in testStr
+        #  compList: list of strings to look for
+        #  testStr: string to search within
+        retVal = True
+        retSet = False
+        allBangs = True
+        for s in compList:
+            if s.startswith('!'):
+                s = s[1:]
+                bang = False
+            else:
+                bang = True
+                allBangs = False
+            if testStr and s.lower() in testStr.lower():
+                retVal = bang is True and retVal
+                retSet = True
+        return retVal and (retSet or allBangs)
+
+if __name__ == '__main__':
+    plgen = PLGen()
+    plgen.generate_playlists()
 
 # :set ts=8 et sw=4 sts=4

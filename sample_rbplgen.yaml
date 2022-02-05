@@ -1,0 +1,25 @@
+---
+rhythmdb: "~/.local/share/rhythmbox/rhythmdb.xml"
+music_dir: "~/Music/"
+playlist_dir: "~/Playlists/"
+playlists:
+  - filename: "jazz.m3u"
+    size: 1000     # Total size (in Mbytes of songs to include
+    count: 300     # Number of songs to include
+    # NOTE: The script will stop after first of
+    # "size" or "count" is reached
+    rating_min: 3  # Songs must have minimum of X star rating
+    last_play: 6   # Only songs not played in previous X weeks
+    genres:  # list of genres to filter
+      - "jazz"  # include as many categories as you want
+      - "bebop" # they will be "or"'d together ('jazz' or 'bebop')
+      - "old"  # these will be searched as "contained in" (oldies, older, old)
+      - "!vocal" # exclude things starting with an '!'
+  - filename: "rnb.m3u"
+    size: 1000
+    rating_min: 4
+    last_play: 6
+    genres:
+      - "r&b"
+      - "soul"
+      - "!disco"
