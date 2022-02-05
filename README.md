@@ -14,3 +14,10 @@ Relies on somewhat complex XPath filters to generate the playlists.
 - [X] Use a ~~JSON~~/YAML file to store playlist configurations
 - [X] Use fancier Xpath queries and don't copy the whole library to a dict
 
+## Version History
+
+v0.2.0: Overhauled the filtering system and added config files
+
+v0.1.1: Dependency updates
+
+v0.1.0: Initial script
